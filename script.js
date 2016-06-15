@@ -1,12 +1,38 @@
 // ==UserScript==
 // @name         Contract Hire and Leasing Calculator
-// @namespace    http://your.homepage/
-// @version      0.2
-// @description  enter something useful
-// @author       You
+// @namespace    http://rorymccrossan.co.uk
+// @version      1.0
+// @description  Adds helpful information to each deal
+// @author       Rory McCrossan
 // @match        http://www.contracthireandleasing.com/personal/*
+// @match        http://www.contracthireandleasing.com/business/*
 // @grant        none
 // ==/UserScript==
+
+$('<style />', {
+    text: '.overall-cost { text-align: right; padding: 0; position: absolute; top: 0; left: 0; right: 0; background-color: #DDD; }' + 
+    '.deal .title-wrap { padding: 0 0 0 10px; }' + 
+    '.all-price-wrap { padding: 0 10px 10px 0 }' + 
+    'ul.amortised li { list-style: inherit; display: inline-block; position: relative; padding-left: 15px; text-align: left; margin: 0 5px 0 15px; }' + 
+    'ul.amortised li:before { position: absolute; left: 0; content: "\u25b6"; }' +
+    '.manufacturer-banner, #ootwWindow, .right-panel, .leaderboard-wrap, .deal-panel h2, .crosslinks, .inline-srb-wrap, footer { display: none; }' + 
+    '.content { margin-top: 0; padding: 5px 3%; }' + 
+    '#btnClose { top: 33px; right: 0; border-left: 5px solid #FFF }' + 
+    '.deal-panel .listing-text { width: 50%; float: left; padding: 7px 0; }' + 
+    '.pagination.posts { width: 50%; clear: none; padding: 0 0 10px; margin: 0;}' +
+    '.search-button-wrap { width: 25%; float: right; position: relative; padding: 0 }' +
+    '.keywords-wrap { width: 75%; float: left; margin: 0 }' + 
+    '.adv-options { padding: 0 }' +
+    '#alldeals .deal { color: #333; background-color: transparent; border: 1px solid #DDD; padding-top: 30px; }' +
+    '#alldeals .deal:first-child { color: #080; background-color: #ecffef; border-color: #88E886; }' + 
+    '#alldeals .deal:first-child .deal-table { background-color: transparent }' + 
+    '#alldeals .deal:first-child ul.amortised li { font-weight: bold; }' + 
+    '#alldeals .deal:first-child .overall-cost { background-color: #88E886; }'
+}).appendTo('head');
+
+$('.pagination.posts').clone(true).insertAfter('.listing-text');
+$('.search-button-wrap').appendTo('.adv-hold');
+$('<div class="deal-container"></div>').appendTo('#alldeals');
 
 $('#alldeals .deal').each(function(i) {
     var $deal = $(this);
@@ -15,88 +41,44 @@ $('#alldeals .deal').each(function(i) {
     var monthlyPrice = $deal.find('.deal-price').text().replace('£', '').replace(',', '');
     var initialPayment = parseFloat($deal.find('.deal-user').text().replace('£', '').replace(',', ''));
     var profileText = $deal.find('.deal-profile').text();
-    
-    var monthRegex = /\d+\+(\d+)/gi;
+        
+    var monthRegex = /(\d+)\+(\d+)/gi;
     var monthMatches = monthRegex.exec(profileText);
-    var months = parseInt(monthMatches[1]);
+    
+    if (isNaN(initialPayment)) {
+        initialPayment = monthMatches[1] * monthlyPrice;
+    }            
+    
+    var months = parseInt(monthMatches[2]);
     var years = (months + 1) / 12;
     
     var totalCost = ((monthlyPrice * months) + initialPayment).toFixed(2);
     var yearlyCost = (totalCost / years).toFixed(2);
-        
-    // ui
-    var $modelDesc = $deal.find('.deal-model-description');
-    $modelDesc.next('div').appendTo($modelDesc);
-    $modelDesc.find('.deal-personal').hide();
+    var $costDiv = $('<div class="overall-cost" />');
     
-    var $costDiv = $('<div />', { 'class': 'overall-cost' }).css({
-        'float': 'right',
-        'width': '250px',
-        'text-align': 'right',
-        'padding': '0 10px 5px 0'
-    });
-    $('.all-price-wrap').css({
-        'clear': 'both',
-        'padding': '0 10px 10px 0'
-    });
-    
-    // yearly cost...
-    $('<p />', { text: '£' + numberWithCommas(yearlyCost) + ' / yr' }).css({
-        'font': '28px/normal "museo_sans700",Gotham,"Helvetica Neue",Helvetica,Arial,sans-serif',
-        'padding': 0
-    }).appendTo($costDiv);
-    
-    // total cost...
-    $('<p />', { text: '£' + numberWithCommas(totalCost) + ' total'}).css({
-        'font': '20px/normal "museo_sans700",Gotham,"Helvetica Neue",Helvetica,Arial,sans-serif',
-        'padding': 0
-    }).appendTo($costDiv);
+    var $amortisedData = $('<ul class="amortised" />').appendTo($costDiv);
+    $('<li />', { 
+        text: '£' + groupNumber((yearlyCost / 12).toFixed(2)) + ' / mo',
+        class: 'monthly'
+    }).prependTo($amortisedData);
+    $('<li />', { 
+        text: '£' + groupNumber(yearlyCost) + ' / yr', 
+        class: 'yearly'
+    }).prependTo($amortisedData);
+    $('<li />', { 
+        text: '£' + groupNumber(totalCost) + ' total',
+        class: 'total'
+    }).prependTo($amortisedData);
     
     $deal.data('yearly-cost', yearlyCost).prepend($costDiv);
 }).sort(function(a, b) {
     return $(a).data('yearly-cost') - $(b).data('yearly-cost');
-}).appendTo('#alldeals')
+}).appendTo('.deal-container');
 
-// get rid of the crap
-$('.manufacturer-banner, #ootwWindow, .right-panel, .leaderboard-wrap, .deal-panel h2, .crosslinks, .inline-srb-wrap, footer').hide();
-$('.content').css({
-    'margin-top': 0,
-    'padding': '5px 3%'
-});
-$('#btnClose').css({
-    'top': '33px',
-    'right': 0,
-    'border-left': '5px solid #FFF'
-});
+function toFloat(input) {
+    return parseFloat(input.replace(/[^0-9\.]+/g,""));
+}
 
-// move search buttons
-$('.search-button-wrap').css({
-    'width': '25%',
-    'float': 'right',
-    'position': 'relative',
-    'padding': 0
-}).appendTo('.adv-hold');
-$('.keywords-wrap').css({
-    'width': '74%',
-    'float': 'left',
-    'margin': 0
-});
-$('.adv-options').css({
-    'padding': 0
-});
-
-// style the deals
-$('#alldeals .deal').css({
-    'color': '#333',
-    'background-color': 'transparent'
-}).first().css({
-    'color': '#080',
-    'background-color': '#ecffef'
-}).find('.deal-table').css('background-color', 'transparent');
-
-// copy pagination to the top
-$('.pagination.posts').clone(true).prependTo('#alldeals');
-
-function numberWithCommas(x) {
+function groupNumber(x) {
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
