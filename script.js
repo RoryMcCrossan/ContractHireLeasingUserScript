@@ -9,6 +9,14 @@
 // @grant        none
 // ==/UserScript==
 
+function toFloat(x) {
+    return parseFloat(x.replace(/[^0-9\.]+/g,""));
+}
+
+function groupNumber(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
 $('<style />', {
     text: '.overall-cost { text-align: right; padding: 0; position: absolute; top: 0; left: 0; right: 0; background-color: #DDD; }' + 
     '.deal .title-wrap { padding: 0 0 0 10px; }' + 
@@ -74,11 +82,3 @@ $('#alldeals .deal').each(function(i) {
 }).sort(function(a, b) {
     return $(a).data('yearly-cost') - $(b).data('yearly-cost');
 }).appendTo('.deal-container');
-
-function toFloat(input) {
-    return parseFloat(input.replace(/[^0-9\.]+/g,""));
-}
-
-function groupNumber(x) {
-    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
